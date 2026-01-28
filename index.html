@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TkFoodLab V18.1 (彈性庫存)</title>
+    <title>TkFoodLab V19 (銷售分析)</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -40,7 +40,6 @@
         .btn-combo { background: #27ae60; } 
         .btn-undo { background: #f1c40f; color: #333; grid-column: span 2; margin-top: 5px; }
 
-        /* 🔥 低庫存 (少於5 或 負數) 依然閃燈，但唔會變灰 */
         .low-stock { background: #e67e22 !important; border: 2px solid #c0392b; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
         
@@ -124,7 +123,7 @@
     </div>
 
     <div id="role-select">
-        <h2 style="text-align:center; color:#555;">TkFoodLab V18.1</h2>
+        <h2 style="text-align:center; color:#555;">TkFoodLab V19</h2>
         <button class="role-btn" style="background:#3498db;" onclick="selectRole('pos')">🏪 我係收銀 (POS)</button>
         <button class="role-btn" style="background:#e67e22;" onclick="selectRole('kitchen')">👨‍🍳 我係廚房 (Kitchen)</button>
     </div>
@@ -160,7 +159,11 @@
             <div class="total-row" style="color:#0053a0;">SumUp: £ <span id="sumupTotal">0.00</span></div>
             <div class="total-row" style="color:#c0392b;">總收: £ <span id="grandTotal">0.00</span></div>
             
-            <button onclick="downloadCSV()" style="background:#27ae60; color:#fff; font-size:0.9em; margin-top:15px; padding:12px; width:100%; border:none; border-radius:8px;">📥 下載 Excel 報表</button>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="downloadCSV()" style="background:#7f8c8d; color:#fff; font-size:0.9em; padding:12px; width:50%; border:none; border-radius:8px;">📥 完整流水帳</button>
+                <button onclick="downloadRankCSV()" style="background:#27ae60; color:#fff; font-size:0.9em; padding:12px; width:50%; border:none; border-radius:8px;">📊 銷量排名榜</button>
+            </div>
+            
             <button onclick="clearAllData()" style="background:#bdc3c7; color:#333; font-size:0.8em; margin-top:10px; padding:10px; width:100%; border:none; border-radius:8px;">🔴 收市清機</button>
         </div>
     </div>
@@ -258,7 +261,6 @@
                 
                 if (stock !== undefined && stock !== null && stock !== '') {
                     stock = parseInt(stock);
-                    // 🚨 改動：顯示負數，唔會鎖掣
                     stockText = `<span class="stock-tag">剩 ${stock}</span>`;
                     
                     if (stock <= 5) {
@@ -270,10 +272,7 @@
                     }
                 }
                 btn.innerHTML = `<span class="emoji">${item.name.split(' ')[0]}</span><span class="item-name">${item.name.split(' ').slice(1).join(' ')}</span><span class="item-price">£${item.price.toFixed(2)}</span>${stockText}`;
-                
-                // 🚨 改動：永遠可以撳
                 btn.onclick = () => add(item);
-                
                 grid.appendChild(btn);
             });
 
@@ -338,13 +337,10 @@
             let time = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
             let itemsStr = currentOrder.map(i => i.name).join(' + ');
             
-            // 🚨 改動：容許負數扣減
             currentOrder.forEach(orderItem => {
                 let deductId = orderItem.stockId || orderItem.id;
                 let stock = inventory[deductId];
-                if (stock !== undefined && stock !== null) {
-                    inventory[deductId] = stock - 1; // 移除 Math.max(0)
-                }
+                if (stock !== undefined && stock !== null) inventory[deductId] = stock - 1;
             });
             localStorage.setItem('marketInventory', JSON.stringify(inventory)); renderMenu();
 
@@ -387,7 +383,40 @@
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `sales_${new Date().toISOString().slice(0,10)}.csv`;
+            link.download = `sales_log_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        // 🔥 新增：下載排名榜 🔥
+        function downloadRankCSV() {
+            // 1. 將 allStats (Object) 轉做 Array
+            let rankArray = [];
+            for (let [name, count] of Object.entries(allStats)) {
+                if(count > 0) {
+                    // 搵返個價錢
+                    let menuItem = menuItems.find(m => m.name === name);
+                    let price = menuItem ? menuItem.price : 0;
+                    let revenue = (count * price).toFixed(2);
+                    rankArray.push({ name, count, revenue });
+                }
+            }
+
+            if (rankArray.length === 0) { alert("未有銷量紀錄"); return; }
+
+            // 2. 排序 (由大到細)
+            rankArray.sort((a, b) => b.count - a.count);
+
+            // 3. 生成 CSV
+            let csv = "\uFEFF排名,產品名稱,賣出數量,單項總收入\n";
+            rankArray.forEach((item, index) => {
+                csv += `${index + 1},"${item.name}",${item.count},£${item.revenue}\n`;
+            });
+
+            // 4. 下載
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `sales_rank_${new Date().toISOString().slice(0,10)}.csv`;
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
@@ -439,7 +468,6 @@
             }
             db.ref('orders').child(key).remove();
         }
-        
         function undoLastOrder() {
             if (kitchenHistory.length === 0) { alert("冇嘢可以復原！"); return; }
             let lastOrder = kitchenHistory[0];
