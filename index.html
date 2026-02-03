@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TkFoodLab V19 (銷售分析)</title>
+    <title>TkFoodLab V20 (Cloud Sync)</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -100,21 +100,20 @@
     <div id="inventoryModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span>📦 庫存設定</span>
+                <span>📦 雲端庫存設定</span>
                 <button class="close-btn" onclick="closeInventory()">取消</button>
             </div>
-            <div style="font-size:0.8em; color:#7f8c8d; margin-bottom:10px;">* 同類產品會共用庫存 (Shared Pool)</div>
+            <div style="font-size:0.8em; color:#7f8c8d; margin-bottom:10px;">* 所有裝置同步 (Shared Pool)</div>
             <div class="modal-body" id="inventoryList"></div>
-            <button class="save-btn" onclick="saveInventory()">💾 儲存設定</button>
+            <button class="save-btn" onclick="saveInventory()">💾 儲存 (同步所有機)</button>
         </div>
     </div>
 
     <div id="historyModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span id="modalTitle">📜 紀錄</span>
+                <span id="modalTitle">📜 全局紀錄</span>
                 <div>
-                    <button class="clear-hist-btn" onclick="clearLocalHistory()">清空</button>
                     <button class="close-btn" onclick="closeHistory()">關閉</button>
                 </div>
             </div>
@@ -123,7 +122,7 @@
     </div>
 
     <div id="role-select">
-        <h2 style="text-align:center; color:#555;">TkFoodLab V19</h2>
+        <h2 style="text-align:center; color:#555;">TkFoodLab V20 (Cloud)</h2>
         <button class="role-btn" style="background:#3498db;" onclick="selectRole('pos')">🏪 我係收銀 (POS)</button>
         <button class="role-btn" style="background:#e67e22;" onclick="selectRole('kitchen')">👨‍🍳 我係廚房 (Kitchen)</button>
     </div>
@@ -135,7 +134,7 @@
         </div>
 
         <div class="display" id="total">
-            <span class="order-id-display">NEXT ORDER: <span id="nextOrderNum">#001</span></span>
+            <span class="order-id-display">NEXT ORDER: <span id="nextOrderNum">Loading...</span></span>
             <span id="priceDisplay">£ 0.00</span>
         </div>
         
@@ -153,18 +152,18 @@
         </div>
         
         <div class="stat-box">
-            <button onclick="showPosHistory()" style="background:#34495e; color:#fff; font-size:1em; padding:12px; width:100%; margin-bottom:15px; border:none; border-radius:8px;">📜 查看今日紀錄</button>
+            <button onclick="showPosHistory()" style="background:#34495e; color:#fff; font-size:1em; padding:12px; width:100%; margin-bottom:15px; border:none; border-radius:8px;">📜 查看全局紀錄</button>
 
-            <div class="total-row" style="color:#27ae60;">現金: £ <span id="cashTotal">0.00</span></div>
-            <div class="total-row" style="color:#0053a0;">SumUp: £ <span id="sumupTotal">0.00</span></div>
-            <div class="total-row" style="color:#c0392b;">總收: £ <span id="grandTotal">0.00</span></div>
+            <div class="total-row" style="color:#27ae60;">全場現金: £ <span id="cashTotal">0.00</span></div>
+            <div class="total-row" style="color:#0053a0;">全場SumUp: £ <span id="sumupTotal">0.00</span></div>
+            <div class="total-row" style="color:#c0392b;">全場總收: £ <span id="grandTotal">0.00</span></div>
             
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button onclick="downloadCSV()" style="background:#7f8c8d; color:#fff; font-size:0.9em; padding:12px; width:50%; border:none; border-radius:8px;">📥 完整流水帳</button>
                 <button onclick="downloadRankCSV()" style="background:#27ae60; color:#fff; font-size:0.9em; padding:12px; width:50%; border:none; border-radius:8px;">📊 銷量排名榜</button>
             </div>
             
-            <button onclick="clearAllData()" style="background:#bdc3c7; color:#333; font-size:0.8em; margin-top:10px; padding:10px; width:100%; border:none; border-radius:8px;">🔴 收市清機</button>
+            <button onclick="clearAllData()" style="background:#bdc3c7; color:#333; font-size:0.8em; margin-top:10px; padding:10px; width:100%; border:none; border-radius:8px;">🔴 收市清機 (Reset Cloud)</button>
         </div>
     </div>
 
@@ -189,22 +188,18 @@
     <audio id="cashSound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
 
     <script>
-        // ✅ Menu
         const menuItems = [
             { id: 'satay', name: '🍢 沙爹', price: 5.00, type: 'food' },
             { id: '3treasures', name: '🍆 三寶', price: 4.00, type: 'food' },
             { id: 'fins', name: '🥣 碗仔翅', price: 4.50, type: 'food' },
             { id: 'fish', name: '🐟 魚肉', price: 3.50, type: 'food' },
             { id: 'mix', name: '🍲 兩溝', price: 5.00, type: 'food' },
-            
             { id: 'mango', name: '🥭🥥 芒椰', price: 4.50, type: 'drink', stockId: 'pool_mango' },
             { id: 'purple', name: '🟣🥥 紫椰', price: 4.50, type: 'drink', stockId: 'pool_purple' },
-            
             { id: 'cmango', name: '➕🥭 餐芒', price: 3.00, type: 'combo', stockId: 'pool_mango' },
             { id: 'cpurple', name: '➕🟣 餐紫', price: 3.00, type: 'combo', stockId: 'pool_purple' }
         ];
 
-        // ✅ Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAwf89HosgmxTH4daR_IIdzKMBwhxxTx3E",
             authDomain: "tkfoodlab-94f22.firebaseapp.com",
@@ -220,22 +215,50 @@
 
         let currentRole = '';
         let currentOrder = [];
-        let allStats = JSON.parse(localStorage.getItem('marketStats')) || {};
-        let transactionHistory = JSON.parse(localStorage.getItem('marketHistory')) || [];
-        let kitchenHistory = JSON.parse(localStorage.getItem('kitchenHistory')) || [];
-        let dailyCash = Number(localStorage.getItem('marketCash')) || 0;
-        let dailySumUp = Number(localStorage.getItem('marketSumUp')) || 0;
-        let orderCount = parseInt(localStorage.getItem('orderCount')) || 1; 
-        let inventory = JSON.parse(localStorage.getItem('marketInventory')) || {};
+        // 雲端數據本地暫存
+        let dailyStats = { cash: 0, sumup: 0, orderCount: 1 };
+        let cloudInventory = {};
+        let cloudSalesLog = [];
+        let kitchenHistory = []; // 只在廚房機本地保存，或可選擇同步
 
         function playCashSound() {
             let audio = document.getElementById('cashSound');
             audio.currentTime = 0; audio.play().catch(e => {});
         }
 
+        // 監聽雲端數據變化 (Real-time Sync)
+        function initGlobalListeners() {
+            // 1. 監聽每日統計 (Cash, SumUp, OrderCount)
+            db.ref('dailyStats').on('value', snapshot => {
+                const val = snapshot.val();
+                if (val) {
+                    dailyStats = val;
+                } else {
+                    dailyStats = { cash: 0, sumup: 0, orderCount: 1 };
+                }
+                updateUI();
+            });
+
+            // 2. 監聽庫存 (Inventory)
+            db.ref('inventory').on('value', snapshot => {
+                cloudInventory = snapshot.val() || {};
+                renderMenu(); // 庫存變，即刻重繪按鈕
+            });
+
+            // 3. 監聽銷售紀錄 (Sales Log) - 用於報表
+            db.ref('salesLog').on('value', snapshot => {
+                const val = snapshot.val();
+                cloudSalesLog = val ? Object.values(val) : [];
+                // 排序：最新的在最前
+                cloudSalesLog.sort((a,b) => b.timestamp - a.timestamp);
+            });
+        }
+
         function selectRole(role) {
             currentRole = role;
             document.getElementById('role-select').style.display = 'none';
+            initGlobalListeners(); // 啟動同步
+
             if (role === 'pos') {
                 document.getElementById('pos-view').style.display = 'flex';
                 renderMenu();
@@ -256,7 +279,7 @@
                 btn.className = `item-btn btn-${item.type}`;
                 
                 let checkId = item.stockId || item.id;
-                let stock = inventory[checkId];
+                let stock = cloudInventory[checkId];
                 let stockText = '';
                 
                 if (stock !== undefined && stock !== null && stock !== '') {
@@ -293,7 +316,7 @@
                 if (seenStockIds[useId]) return;
                 seenStockIds[useId] = true;
 
-                let val = inventory[useId];
+                let val = cloudInventory[useId];
                 if(val === undefined || val === null) val = '';
                 
                 let displayName = item.name;
@@ -304,7 +327,12 @@
         }
 
         function saveInventory() {
+            let newInv = {};
             let seenStockIds = {};
+            
+            // 先讀取舊有庫存，避免覆蓋未顯示的項目
+            newInv = {...cloudInventory};
+
             menuItems.forEach(item => {
                 let useId = item.stockId || item.id;
                 if(seenStockIds[useId]) return; 
@@ -312,122 +340,183 @@
                 let input = document.getElementById(`inv-${useId}`);
                 if (input) {
                     let val = input.value;
-                    if (val === '') delete inventory[useId]; else inventory[useId] = parseInt(val);
+                    if (val === '') delete newInv[useId]; else newInv[useId] = parseInt(val);
                 }
             });
-            localStorage.setItem('marketInventory', JSON.stringify(inventory));
-            closeInventory(); renderMenu();
+            
+            db.ref('inventory').set(newInv);
+            closeInventory();
         }
         function closeInventory() { document.getElementById('inventoryModal').style.display = 'none'; }
 
-        // === POS ===
+        // === POS Logic ===
         function add(item) { currentOrder.push(item); updateUI(); let box = document.querySelector('.history-box'); box.scrollTop = box.scrollHeight; }
         function backspace() { if(currentOrder.length > 0) { currentOrder.pop(); updateUI(); } }
-        function payWithCash() { if (currentOrder.length === 0) return; playCashSound(); let total = calculateTotal(); dailyCash += total; processOrder("Cash", total); updateUI(); }
+        
+        function payWithCash() { if (currentOrder.length === 0) return; playCashSound(); processTransaction("Cash"); }
         function payWithSumUp() {
-            let total = calculateTotal(); if (total <= 0) return; playCashSound(); dailySumUp += total; processOrder("SumUp", total); updateUI();
+            if (currentOrder.length === 0) return; playCashSound();
+            let total = calculateTotal();
             const affiliateKey = "sup_afk_0iCXN24RDImFTW7FuzTeIzZLgpY81W9n"; 
             let appId = "app.netlify.tkfoodlab"; 
             let summary = currentOrder.map(i => i.name.replace(/[^\w\s\u4e00-\u9fa5]/g, '')).join('+');
             let url = `sumupmerchant://pay/1.0?amount=${total.toFixed(2)}&currency=GBP&affiliate-key=${affiliateKey}&app-id=${appId}&title=${encodeURIComponent(summary)}&paymentType=card_reader`;
-            setTimeout(() => { window.location.href = url; }, 300);
-        }
-        function processOrder(method, total) {
-            let formattedID = String(orderCount).padStart(3, '0');
-            let time = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
-            let itemsStr = currentOrder.map(i => i.name).join(' + ');
             
-            currentOrder.forEach(orderItem => {
-                let deductId = orderItem.stockId || orderItem.id;
-                let stock = inventory[deductId];
-                if (stock !== undefined && stock !== null) inventory[deductId] = stock - 1;
-            });
-            localStorage.setItem('marketInventory', JSON.stringify(inventory)); renderMenu();
-
-            transactionHistory.unshift({ id: formattedID, time: time, items: itemsStr, amount: total.toFixed(2), method: method });
-            currentOrder.forEach(item => { allStats[item.name] = (allStats[item.name] || 0) + 1; });
-
-            db.ref('orders').push({ id: formattedID, items: itemsStr, time: time, method: method, timestamp: firebase.database.ServerValue.TIMESTAMP });
-
-            orderCount++; saveData(); if(method === "Cash") { currentOrder = []; }
+            processTransaction("SumUp");
+            setTimeout(() => { window.location.href = url; }, 500); // 稍作延遲確保數據已送出
         }
+
+        // 🔥 核心交易處理 (使用 Firebase Transaction 保證原子性)
+        function processTransaction(method) {
+            let total = calculateTotal();
+            let itemsStr = currentOrder.map(i => i.name).join(' + ');
+            let time = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
+            let timestamp = Date.now();
+
+            // 1. 更新單號和總數 (Atomic)
+            const statsRef = db.ref('dailyStats');
+            statsRef.transaction(currentStats => {
+                if (!currentStats) return { cash: 0, sumup: 0, orderCount: 1 };
+                
+                if (method === 'Cash') currentStats.cash = (currentStats.cash || 0) + total;
+                else currentStats.sumup = (currentStats.sumup || 0) + total;
+                
+                let thisOrderNum = currentStats.orderCount || 1;
+                currentStats.orderCount = thisOrderNum + 1;
+                return currentStats;
+            }, (error, committed, snapshot) => {
+                if (committed) {
+                    let val = snapshot.val();
+                    // 獲取這張單的正確單號 (交易前的值)
+                    let confirmedID = String(val.orderCount - 1).padStart(3, '0');
+                    
+                    // 2. 記錄到 SalesLog (List)
+                    db.ref('salesLog').push({
+                        id: confirmedID,
+                        time: time,
+                        items: itemsStr,
+                        amount: total.toFixed(2),
+                        method: method,
+                        timestamp: timestamp
+                    });
+
+                    // 3. 發送到廚房
+                    db.ref('orders').push({
+                        id: confirmedID,
+                        items: itemsStr,
+                        time: time,
+                        method: method,
+                        timestamp: timestamp
+                    });
+
+                    // 4. 扣減庫存
+                    const invRef = db.ref('inventory');
+                    invRef.transaction(inv => {
+                        if (!inv) return inv;
+                        currentOrder.forEach(orderItem => {
+                            let deductId = orderItem.stockId || orderItem.id;
+                            if (inv[deductId] !== undefined && inv[deductId] !== null) {
+                                inv[deductId] = inv[deductId] - 1;
+                            }
+                        });
+                        return inv;
+                    });
+                    
+                    // 清空購物車
+                    if(method === 'Cash') { 
+                        currentOrder = []; 
+                        updateUI(); 
+                    }
+                }
+            });
+        }
+
         function nextCustomer() { currentOrder=[]; updateUI(); }
         function calculateTotal() { return currentOrder.reduce((s,i)=>s+i.price,0); }
+
         function updateUI() {
             try {
                 let total = calculateTotal();
                 document.getElementById('priceDisplay').innerText = '£ ' + total.toFixed(2);
                 document.getElementById('log').innerText = currentOrder.map(i => i.name).join(' + ') || '空';
-                document.getElementById('nextOrderNum').innerText = '#' + String(orderCount).padStart(3, '0');
-                document.getElementById('cashTotal').innerText = Number(dailyCash).toFixed(2);
-                document.getElementById('sumupTotal').innerText = Number(dailySumUp).toFixed(2);
-                document.getElementById('grandTotal').innerText = (Number(dailyCash) + Number(dailySumUp)).toFixed(2);
+                
+                // 顯示來自雲端的數據
+                document.getElementById('nextOrderNum').innerText = '#' + String(dailyStats.orderCount || 1).padStart(3, '0');
+                document.getElementById('cashTotal').innerText = Number(dailyStats.cash || 0).toFixed(2);
+                document.getElementById('sumupTotal').innerText = Number(dailyStats.sumup || 0).toFixed(2);
+                document.getElementById('grandTotal').innerText = (Number(dailyStats.cash || 0) + Number(dailyStats.sumup || 0)).toFixed(2);
             } catch (e) {}
         }
-        function saveData() {
-            localStorage.setItem('marketStats', JSON.stringify(allStats));
-            localStorage.setItem('marketHistory', JSON.stringify(transactionHistory));
-            localStorage.setItem('marketCash', dailyCash);
-            localStorage.setItem('marketSumUp', dailySumUp);
-            localStorage.setItem('orderCount', orderCount);
-        }
+
+        // 清空所有雲端數據
         function clearAllData() {
-            if(confirm('🔴 警告：確定要清空今日 POS 所有紀錄？\n(庫存數量不會被重置)')) {
-                allStats = {}; transactionHistory = []; dailyCash = 0; dailySumUp = 0; currentOrder = []; orderCount = 1; saveData(); updateUI();
+            if(confirm('🔴 嚴重警告：確定要清空雲端所有紀錄？\n所有連接的裝置都會被重置！')) {
+                db.ref('dailyStats').set({ cash: 0, sumup: 0, orderCount: 1 });
+                db.ref('salesLog').remove();
+                db.ref('orders').remove();
+                // 庫存不重置，或可選擇重置: db.ref('inventory').remove();
+                alert("雲端數據已重置。");
             }
         }
+        
+        // 下載流水帳 (從雲端 list)
         function downloadCSV() {
-             if (transactionHistory.length === 0) { alert("未有紀錄"); return; }
+             if (cloudSalesLog.length === 0) { alert("未有紀錄"); return; }
             let csv = "\uFEFF單號,時間,內容,金額,方式\n";
-            transactionHistory.forEach(r => { csv += `#${r.id},${r.time},"${r.items}",£${r.amount},${r.method}\n`; });
-            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            let link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `sales_log_${new Date().toISOString().slice(0,10)}.csv`;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            cloudSalesLog.forEach(r => { csv += `#${r.id},${r.time},"${r.items}",£${r.amount},${r.method}\n`; });
+            downloadFile(csv, `sales_log_${new Date().toISOString().slice(0,10)}.csv`);
         }
 
-        // 🔥 新增：下載排名榜 🔥
+        // 下載排名 (從雲端 list 計算)
         function downloadRankCSV() {
-            // 1. 將 allStats (Object) 轉做 Array
+            if (cloudSalesLog.length === 0) { alert("未有紀錄"); return; }
+            
+            // 重新計算統計
+            let stats = {};
+            cloudSalesLog.forEach(log => {
+                 let items = log.items.split(' + ');
+                 items.forEach(itemName => {
+                     stats[itemName] = (stats[itemName] || 0) + 1;
+                 });
+            });
+
             let rankArray = [];
-            for (let [name, count] of Object.entries(allStats)) {
-                if(count > 0) {
-                    // 搵返個價錢
-                    let menuItem = menuItems.find(m => m.name === name);
-                    let price = menuItem ? menuItem.price : 0;
-                    let revenue = (count * price).toFixed(2);
-                    rankArray.push({ name, count, revenue });
-                }
+            for (let [name, count] of Object.entries(stats)) {
+                let menuItem = menuItems.find(m => m.name === name);
+                let price = menuItem ? menuItem.price : 0;
+                let revenue = (count * price).toFixed(2);
+                rankArray.push({ name, count, revenue });
             }
-
-            if (rankArray.length === 0) { alert("未有銷量紀錄"); return; }
-
-            // 2. 排序 (由大到細)
             rankArray.sort((a, b) => b.count - a.count);
 
-            // 3. 生成 CSV
             let csv = "\uFEFF排名,產品名稱,賣出數量,單項總收入\n";
             rankArray.forEach((item, index) => {
                 csv += `${index + 1},"${item.name}",${item.count},£${item.revenue}\n`;
             });
+            downloadFile(csv, `sales_rank_${new Date().toISOString().slice(0,10)}.csv`);
+        }
 
-            // 4. 下載
-            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        function downloadFile(content, filename) {
+            let blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `sales_rank_${new Date().toISOString().slice(0,10)}.csv`;
+            link.download = filename;
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         // === Kitchen ===
         function initKitchenListener() {
             const list = document.getElementById('ticket-list');
-            db.ref('orders').orderByChild('timestamp').limitToLast(20).on('child_added', (snapshot) => {
+            // 監聽雲端 Orders
+            db.ref('orders').orderByChild('timestamp').limitToLast(30).on('child_added', (snapshot) => {
                 const order = snapshot.val();
                 const key = snapshot.key;
                 playCashSound(); 
                 if(list.innerText.includes('準備接單')) list.innerHTML = '';
+                
+                // 檢查是否已存在 (避免重複 render)
+                if(document.getElementById(key)) return;
+
                 let card = document.createElement('div');
                 card.className = 'ticket'; card.id = key;
                 card.dataset.id = order.id; card.dataset.time = order.time; card.dataset.items = order.items; card.dataset.method = order.method;
@@ -441,6 +530,7 @@
                 updateKitchenStats();
             });
         }
+
         function updateKitchenStats() {
             let summaryBox = document.getElementById('kitchen-summary');
             let contentBox = document.getElementById('summary-content');
@@ -457,32 +547,45 @@
             contentBox.innerHTML = html;
             summaryBox.style.display = 'block';
         }
+
         function completeOrder(key) {
+            // 本地儲存一份 Kitchen History，不需上雲端 (除非你想廚房機之間同步歷史)
             let el = document.getElementById(key);
             if(el) {
-                let id = el.dataset.id; let time = el.dataset.time; let items = el.dataset.items;
+                let id = el.dataset.id; let time = el.dataset.time; let items = el.dataset.items; let method = el.dataset.method || 'Unknown';
                 let doneTime = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
-                let method = el.dataset.method || 'Unknown'; 
-                kitchenHistory.unshift({ id: id, items: items, inTime: time, doneTime: doneTime, method: method });
+                kitchenHistory.unshift({ id, items, inTime: time, doneTime, method, key }); // key for restore
+                // 簡單存入 localStorage 作暫存
                 localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
             }
             db.ref('orders').child(key).remove();
         }
+        
         function undoLastOrder() {
             if (kitchenHistory.length === 0) { alert("冇嘢可以復原！"); return; }
-            let lastOrder = kitchenHistory[0];
-            if(!confirm(`確定要還原單號 #${lastOrder.id}?`)) return;
-            kitchenHistory.shift(); localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
-            db.ref('orders').push({ id: lastOrder.id, items: lastOrder.items, time: lastOrder.inTime, method: lastOrder.method || 'Restored', timestamp: firebase.database.ServerValue.TIMESTAMP });
-            if(document.getElementById('historyModal').style.display === 'flex') { renderList(kitchenHistory, 'kitchen'); }
+            let last = kitchenHistory[0];
+            if(!confirm(`確定要還原單號 #${last.id}?`)) return;
+            
+            kitchenHistory.shift(); 
+            localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
+
+            // 推返上雲端 Orders
+            db.ref('orders').push({
+                id: last.id,
+                items: last.items,
+                time: last.inTime,
+                method: last.method,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
         }
 
         // === Modal Functions ===
-        function showPosHistory() { document.getElementById('modalTitle').innerText = "📜 POS 今日紀錄"; renderList(transactionHistory, 'pos'); document.getElementById('historyModal').style.display = 'flex'; }
-        function showKitchenHistory() { document.getElementById('modalTitle').innerText = "📜 廚房已出餐紀錄"; renderList(kitchenHistory, 'kitchen'); document.getElementById('historyModal').style.display = 'flex'; }
+        function showPosHistory() { document.getElementById('modalTitle').innerText = "📜 全局紀錄 (Global)"; renderList(cloudSalesLog, 'pos'); document.getElementById('historyModal').style.display = 'flex'; }
+        function showKitchenHistory() { document.getElementById('modalTitle').innerText = "📜 廚房已出餐紀錄 (Local)"; renderList(kitchenHistory, 'kitchen'); document.getElementById('historyModal').style.display = 'flex'; }
+        
         function renderList(data, type) {
             let listDiv = document.getElementById('modalListContent');
-            if (data.length === 0) { listDiv.innerHTML = '<div style="text-align:center;margin-top:20px;color:#999">暫無紀錄</div>'; return; }
+            if (!data || data.length === 0) { listDiv.innerHTML = '<div style="text-align:center;margin-top:20px;color:#999">暫無紀錄</div>'; return; }
             let html = '';
             data.forEach(t => {
                 if(type === 'pos') html += `<div class="history-item"><div class="h-header"><span>#${t.id} - ${t.time}</span><span class="h-tag" style="background:${t.method=='Cash'?'#27ae60':'#0053a0'}">${t.method} £${t.amount}</span></div><div class="h-items">${t.items}</div></div>`;
@@ -491,7 +594,7 @@
             listDiv.innerHTML = html;
         }
         function closeHistory() { document.getElementById('historyModal').style.display = 'none'; }
-        function clearLocalHistory() { if(currentRole === 'pos') alert("POS 紀錄請在主畫面按「收市清機」"); else if(confirm("確定清空「已出餐紀錄」？")) { kitchenHistory = []; localStorage.setItem('kitchenHistory', JSON.stringify([])); renderList([], 'kitchen'); } }
+        function clearLocalHistory() { kitchenHistory = []; localStorage.setItem('kitchenHistory', JSON.stringify([])); renderList([], 'kitchen'); }
     </script>
 </body>
 </html>
