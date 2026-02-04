@@ -188,14 +188,18 @@
     <audio id="cashSound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
 
     <script>
+        // ✅ Menu (已新增免費豬肉丸)
         const menuItems = [
             { id: 'satay', name: '🍢 沙爹', price: 5.00, type: 'food' },
             { id: '3treasures', name: '🍆 三寶', price: 4.00, type: 'food' },
             { id: 'fins', name: '🥣 碗仔翅', price: 4.50, type: 'food' },
             { id: 'fish', name: '🐟 魚肉', price: 3.50, type: 'food' },
+            { id: 'porkball', name: '🐷 豬肉丸', price: 0.00, type: 'food' }, // 🆕 新增免費項目
             { id: 'mix', name: '🍲 兩溝', price: 5.00, type: 'food' },
+            
             { id: 'mango', name: '🥭🥥 芒椰', price: 4.50, type: 'drink', stockId: 'pool_mango' },
             { id: 'purple', name: '🟣🥥 紫椰', price: 4.50, type: 'drink', stockId: 'pool_purple' },
+            
             { id: 'cmango', name: '➕🥭 餐芒', price: 3.00, type: 'combo', stockId: 'pool_mango' },
             { id: 'cpurple', name: '➕🟣 餐紫', price: 3.00, type: 'combo', stockId: 'pool_purple' }
         ];
@@ -598,3 +602,4 @@
     </script>
 </body>
 </html>
+
