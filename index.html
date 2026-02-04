@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TkFoodLab V20 (Cloud Sync)</title>
+    <title>TkFoodLab V21 (Void Order)</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -34,7 +34,6 @@
         
         .stock-tag { font-size: 0.7em; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
         
-        /* Colors */
         .btn-food { background: #f39c12; } 
         .btn-drink { background: #3498db; } 
         .btn-combo { background: #27ae60; } 
@@ -54,7 +53,7 @@
         
         /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; width: 90%; max-width: 400px; max-height: 85%; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; }
+        .modal-content { background: #fff; width: 95%; max-width: 450px; max-height: 90%; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; }
         .modal-header { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .modal-body { flex: 1; overflow-y: auto; }
         
@@ -66,11 +65,15 @@
         .save-btn { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1.1em; width: 100%; margin-top: 10px; font-weight: bold; cursor: pointer; }
         .clear-hist-btn { background: #95a5a6; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.7em; cursor: pointer; margin-right: 10px;}
 
-        /* History Items */
-        .history-item { border-bottom: 1px solid #eee; padding: 10px 0; }
-        .h-header { display: flex; justify-content: space-between; font-weight: bold; color: #2c3e50; }
+        /* History Items in Modal */
+        .history-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+        .h-info { flex: 1; }
+        .h-header { font-weight: bold; color: #2c3e50; display: flex; align-items: center; gap: 5px; }
         .h-items { font-size: 0.9em; color: #555; margin-top: 5px; }
-        .h-tag { font-size:0.8em; padding:2px 5px; border-radius:4px; color:white; }
+        .h-tag { font-size:0.7em; padding:2px 5px; border-radius:4px; color:white; margin-left: 5px; }
+        
+        /* Void Button */
+        .void-btn { background: #c0392b; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 0.8em; margin-left: 10px; cursor: pointer; }
 
         /* Kitchen */
         #kitchen-view { display: none; width: 100%; max-width: 600px; flex-direction: column; gap: 15px; padding-bottom: 50px; }
@@ -100,29 +103,27 @@
     <div id="inventoryModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span>📦 雲端庫存設定</span>
+                <span>📦 庫存設定</span>
                 <button class="close-btn" onclick="closeInventory()">取消</button>
             </div>
-            <div style="font-size:0.8em; color:#7f8c8d; margin-bottom:10px;">* 所有裝置同步 (Shared Pool)</div>
+            <div style="font-size:0.8em; color:#7f8c8d; margin-bottom:10px;">* 同類產品會共用庫存</div>
             <div class="modal-body" id="inventoryList"></div>
-            <button class="save-btn" onclick="saveInventory()">💾 儲存 (同步所有機)</button>
+            <button class="save-btn" onclick="saveInventory()">💾 儲存</button>
         </div>
     </div>
 
     <div id="historyModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span id="modalTitle">📜 全局紀錄</span>
-                <div>
-                    <button class="close-btn" onclick="closeHistory()">關閉</button>
-                </div>
+                <span id="modalTitle">📜 紀錄</span>
+                <button class="close-btn" onclick="closeHistory()">關閉</button>
             </div>
             <div class="modal-body" id="modalListContent"></div>
         </div>
     </div>
 
     <div id="role-select">
-        <h2 style="text-align:center; color:#555;">TkFoodLab V20 (Cloud)</h2>
+        <h2 style="text-align:center; color:#555;">TkFoodLab V21 (Void)</h2>
         <button class="role-btn" style="background:#3498db;" onclick="selectRole('pos')">🏪 我係收銀 (POS)</button>
         <button class="role-btn" style="background:#e67e22;" onclick="selectRole('kitchen')">👨‍🍳 我係廚房 (Kitchen)</button>
     </div>
@@ -134,7 +135,7 @@
         </div>
 
         <div class="display" id="total">
-            <span class="order-id-display">NEXT ORDER: <span id="nextOrderNum">Loading...</span></span>
+            <span class="order-id-display">NEXT ORDER: <span id="nextOrderNum">...</span></span>
             <span id="priceDisplay">£ 0.00</span>
         </div>
         
@@ -152,7 +153,7 @@
         </div>
         
         <div class="stat-box">
-            <button onclick="showPosHistory()" style="background:#34495e; color:#fff; font-size:1em; padding:12px; width:100%; margin-bottom:15px; border:none; border-radius:8px;">📜 查看全局紀錄</button>
+            <button onclick="showPosHistory()" style="background:#34495e; color:#fff; font-size:1em; padding:12px; width:100%; margin-bottom:15px; border:none; border-radius:8px;">📜 管理訂單 / 退單 (History)</button>
 
             <div class="total-row" style="color:#27ae60;">全場現金: £ <span id="cashTotal">0.00</span></div>
             <div class="total-row" style="color:#0053a0;">全場SumUp: £ <span id="sumupTotal">0.00</span></div>
@@ -163,7 +164,7 @@
                 <button onclick="downloadRankCSV()" style="background:#27ae60; color:#fff; font-size:0.9em; padding:12px; width:50%; border:none; border-radius:8px;">📊 銷量排名榜</button>
             </div>
             
-            <button onclick="clearAllData()" style="background:#bdc3c7; color:#333; font-size:0.8em; margin-top:10px; padding:10px; width:100%; border:none; border-radius:8px;">🔴 收市清機 (Reset Cloud)</button>
+            <button onclick="clearAllData()" style="background:#bdc3c7; color:#333; font-size:0.8em; margin-top:10px; padding:10px; width:100%; border:none; border-radius:8px;">🔴 收市清機 (Reset)</button>
         </div>
     </div>
 
@@ -188,18 +189,15 @@
     <audio id="cashSound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
 
     <script>
-        // ✅ Menu (已新增免費豬肉丸)
         const menuItems = [
             { id: 'satay', name: '🍢 沙爹', price: 5.00, type: 'food' },
             { id: '3treasures', name: '🍆 三寶', price: 4.00, type: 'food' },
             { id: 'fins', name: '🥣 碗仔翅', price: 4.50, type: 'food' },
             { id: 'fish', name: '🐟 魚肉', price: 3.50, type: 'food' },
-            { id: 'porkball', name: '🐷 豬肉丸', price: 0.00, type: 'food' }, // 🆕 新增免費項目
+            { id: 'porkball', name: '🐷 豬肉丸', price: 0.00, type: 'food' },
             { id: 'mix', name: '🍲 兩溝', price: 5.00, type: 'food' },
-            
             { id: 'mango', name: '🥭🥥 芒椰', price: 4.50, type: 'drink', stockId: 'pool_mango' },
             { id: 'purple', name: '🟣🥥 紫椰', price: 4.50, type: 'drink', stockId: 'pool_purple' },
-            
             { id: 'cmango', name: '➕🥭 餐芒', price: 3.00, type: 'combo', stockId: 'pool_mango' },
             { id: 'cpurple', name: '➕🟣 餐紫', price: 3.00, type: 'combo', stockId: 'pool_purple' }
         ];
@@ -219,54 +217,45 @@
 
         let currentRole = '';
         let currentOrder = [];
-        // 雲端數據本地暫存
         let dailyStats = { cash: 0, sumup: 0, orderCount: 1 };
         let cloudInventory = {};
         let cloudSalesLog = [];
-        let kitchenHistory = []; // 只在廚房機本地保存，或可選擇同步
+        let kitchenHistory = []; 
 
         function playCashSound() {
             let audio = document.getElementById('cashSound');
             audio.currentTime = 0; audio.play().catch(e => {});
         }
 
-        // 監聽雲端數據變化 (Real-time Sync)
+        // Global Listeners
         function initGlobalListeners() {
-            // 1. 監聽每日統計 (Cash, SumUp, OrderCount)
             db.ref('dailyStats').on('value', snapshot => {
-                const val = snapshot.val();
-                if (val) {
-                    dailyStats = val;
-                } else {
-                    dailyStats = { cash: 0, sumup: 0, orderCount: 1 };
-                }
+                dailyStats = snapshot.val() || { cash: 0, sumup: 0, orderCount: 1 };
                 updateUI();
             });
-
-            // 2. 監聽庫存 (Inventory)
             db.ref('inventory').on('value', snapshot => {
                 cloudInventory = snapshot.val() || {};
-                renderMenu(); // 庫存變，即刻重繪按鈕
+                renderMenu();
             });
-
-            // 3. 監聽銷售紀錄 (Sales Log) - 用於報表
             db.ref('salesLog').on('value', snapshot => {
                 const val = snapshot.val();
-                cloudSalesLog = val ? Object.values(val) : [];
-                // 排序：最新的在最前
-                cloudSalesLog.sort((a,b) => b.timestamp - a.timestamp);
+                if(val) {
+                    // 保留 Key 以便退單
+                    cloudSalesLog = Object.entries(val).map(([k, v]) => ({...v, key: k}));
+                    cloudSalesLog.sort((a,b) => b.timestamp - a.timestamp);
+                } else {
+                    cloudSalesLog = [];
+                }
             });
         }
 
         function selectRole(role) {
             currentRole = role;
             document.getElementById('role-select').style.display = 'none';
-            initGlobalListeners(); // 啟動同步
-
+            initGlobalListeners();
             if (role === 'pos') {
                 document.getElementById('pos-view').style.display = 'flex';
-                renderMenu();
-                updateUI();
+                renderMenu(); updateUI();
             } else {
                 document.getElementById('kitchen-view').style.display = 'flex';
                 initKitchenListener();
@@ -277,32 +266,25 @@
         function renderMenu() {
             const grid = document.getElementById('menuGrid');
             grid.innerHTML = '';
-            
             menuItems.forEach(item => {
                 let btn = document.createElement('button');
                 btn.className = `item-btn btn-${item.type}`;
-                
                 let checkId = item.stockId || item.id;
                 let stock = cloudInventory[checkId];
                 let stockText = '';
-                
                 if (stock !== undefined && stock !== null && stock !== '') {
                     stock = parseInt(stock);
                     stockText = `<span class="stock-tag">剩 ${stock}</span>`;
-                    
                     if (stock <= 5) {
                         btn.classList.add('low-stock');
                         stockText = `<span class="stock-tag">🔥剩 ${stock}</span>`;
                     }
-                    if (stock <= 0) {
-                        stockText = `<span class="stock-tag">⚠️剩 ${stock}</span>`;
-                    }
+                    if (stock <= 0) stockText = `<span class="stock-tag">⚠️剩 ${stock}</span>`;
                 }
                 btn.innerHTML = `<span class="emoji">${item.name.split(' ')[0]}</span><span class="item-name">${item.name.split(' ').slice(1).join(' ')}</span><span class="item-price">£${item.price.toFixed(2)}</span>${stockText}`;
                 btn.onclick = () => add(item);
                 grid.appendChild(btn);
             });
-
             let undoBtn = document.createElement('button');
             undoBtn.className = 'item-btn btn-undo';
             undoBtn.innerHTML = '<span class="emoji">🔙</span> UNDO';
@@ -314,15 +296,12 @@
             const list = document.getElementById('inventoryList');
             list.innerHTML = '';
             let seenStockIds = {}; 
-
             menuItems.forEach(item => {
                 let useId = item.stockId || item.id;
                 if (seenStockIds[useId]) return;
                 seenStockIds[useId] = true;
-
                 let val = cloudInventory[useId];
                 if(val === undefined || val === null) val = '';
-                
                 let displayName = item.name;
                 if(item.stockId) displayName += " (共用)";
                 list.innerHTML += `<div class="inv-item"><span class="inv-label">${displayName}</span><input type="number" class="inv-input" id="inv-${useId}" value="${val}" placeholder="∞"></div>`;
@@ -331,12 +310,8 @@
         }
 
         function saveInventory() {
-            let newInv = {};
+            let newInv = {...cloudInventory};
             let seenStockIds = {};
-            
-            // 先讀取舊有庫存，避免覆蓋未顯示的項目
-            newInv = {...cloudInventory};
-
             menuItems.forEach(item => {
                 let useId = item.stockId || item.id;
                 if(seenStockIds[useId]) return; 
@@ -347,7 +322,6 @@
                     if (val === '') delete newInv[useId]; else newInv[useId] = parseInt(val);
                 }
             });
-            
             db.ref('inventory').set(newInv);
             closeInventory();
         }
@@ -365,55 +339,32 @@
             let appId = "app.netlify.tkfoodlab"; 
             let summary = currentOrder.map(i => i.name.replace(/[^\w\s\u4e00-\u9fa5]/g, '')).join('+');
             let url = `sumupmerchant://pay/1.0?amount=${total.toFixed(2)}&currency=GBP&affiliate-key=${affiliateKey}&app-id=${appId}&title=${encodeURIComponent(summary)}&paymentType=card_reader`;
-            
             processTransaction("SumUp");
-            setTimeout(() => { window.location.href = url; }, 500); // 稍作延遲確保數據已送出
+            setTimeout(() => { window.location.href = url; }, 500); 
         }
 
-        // 🔥 核心交易處理 (使用 Firebase Transaction 保證原子性)
         function processTransaction(method) {
             let total = calculateTotal();
             let itemsStr = currentOrder.map(i => i.name).join(' + ');
             let time = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
             let timestamp = Date.now();
 
-            // 1. 更新單號和總數 (Atomic)
             const statsRef = db.ref('dailyStats');
             statsRef.transaction(currentStats => {
                 if (!currentStats) return { cash: 0, sumup: 0, orderCount: 1 };
-                
                 if (method === 'Cash') currentStats.cash = (currentStats.cash || 0) + total;
                 else currentStats.sumup = (currentStats.sumup || 0) + total;
-                
                 let thisOrderNum = currentStats.orderCount || 1;
                 currentStats.orderCount = thisOrderNum + 1;
                 return currentStats;
             }, (error, committed, snapshot) => {
                 if (committed) {
                     let val = snapshot.val();
-                    // 獲取這張單的正確單號 (交易前的值)
                     let confirmedID = String(val.orderCount - 1).padStart(3, '0');
                     
-                    // 2. 記錄到 SalesLog (List)
-                    db.ref('salesLog').push({
-                        id: confirmedID,
-                        time: time,
-                        items: itemsStr,
-                        amount: total.toFixed(2),
-                        method: method,
-                        timestamp: timestamp
-                    });
+                    db.ref('salesLog').push({ id: confirmedID, time, items: itemsStr, amount: total.toFixed(2), method, timestamp });
+                    db.ref('orders').push({ id: confirmedID, items: itemsStr, time, method, timestamp });
 
-                    // 3. 發送到廚房
-                    db.ref('orders').push({
-                        id: confirmedID,
-                        items: itemsStr,
-                        time: time,
-                        method: method,
-                        timestamp: timestamp
-                    });
-
-                    // 4. 扣減庫存
                     const invRef = db.ref('inventory');
                     invRef.transaction(inv => {
                         if (!inv) return inv;
@@ -426,11 +377,7 @@
                         return inv;
                     });
                     
-                    // 清空購物車
-                    if(method === 'Cash') { 
-                        currentOrder = []; 
-                        updateUI(); 
-                    }
+                    if(method === 'Cash') { currentOrder = []; updateUI(); }
                 }
             });
         }
@@ -443,8 +390,6 @@
                 let total = calculateTotal();
                 document.getElementById('priceDisplay').innerText = '£ ' + total.toFixed(2);
                 document.getElementById('log').innerText = currentOrder.map(i => i.name).join(' + ') || '空';
-                
-                // 顯示來自雲端的數據
                 document.getElementById('nextOrderNum').innerText = '#' + String(dailyStats.orderCount || 1).padStart(3, '0');
                 document.getElementById('cashTotal').innerText = Number(dailyStats.cash || 0).toFixed(2);
                 document.getElementById('sumupTotal').innerText = Number(dailyStats.sumup || 0).toFixed(2);
@@ -452,18 +397,15 @@
             } catch (e) {}
         }
 
-        // 清空所有雲端數據
         function clearAllData() {
-            if(confirm('🔴 嚴重警告：確定要清空雲端所有紀錄？\n所有連接的裝置都會被重置！')) {
+            if(confirm('🔴 嚴重警告：確定要清空雲端所有紀錄？')) {
                 db.ref('dailyStats').set({ cash: 0, sumup: 0, orderCount: 1 });
                 db.ref('salesLog').remove();
                 db.ref('orders').remove();
-                // 庫存不重置，或可選擇重置: db.ref('inventory').remove();
                 alert("雲端數據已重置。");
             }
         }
         
-        // 下載流水帳 (從雲端 list)
         function downloadCSV() {
              if (cloudSalesLog.length === 0) { alert("未有紀錄"); return; }
             let csv = "\uFEFF單號,時間,內容,金額,方式\n";
@@ -471,19 +413,13 @@
             downloadFile(csv, `sales_log_${new Date().toISOString().slice(0,10)}.csv`);
         }
 
-        // 下載排名 (從雲端 list 計算)
         function downloadRankCSV() {
             if (cloudSalesLog.length === 0) { alert("未有紀錄"); return; }
-            
-            // 重新計算統計
             let stats = {};
             cloudSalesLog.forEach(log => {
                  let items = log.items.split(' + ');
-                 items.forEach(itemName => {
-                     stats[itemName] = (stats[itemName] || 0) + 1;
-                 });
+                 items.forEach(itemName => { stats[itemName] = (stats[itemName] || 0) + 1; });
             });
-
             let rankArray = [];
             for (let [name, count] of Object.entries(stats)) {
                 let menuItem = menuItems.find(m => m.name === name);
@@ -492,11 +428,8 @@
                 rankArray.push({ name, count, revenue });
             }
             rankArray.sort((a, b) => b.count - a.count);
-
             let csv = "\uFEFF排名,產品名稱,賣出數量,單項總收入\n";
-            rankArray.forEach((item, index) => {
-                csv += `${index + 1},"${item.name}",${item.count},£${item.revenue}\n`;
-            });
+            rankArray.forEach((item, index) => { csv += `${index + 1},"${item.name}",${item.count},£${item.revenue}\n`; });
             downloadFile(csv, `sales_rank_${new Date().toISOString().slice(0,10)}.csv`);
         }
 
@@ -508,19 +441,58 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
+        // 🔥 退單 (Void Order) 邏輯 🔥
+        function deleteOrder(key, orderData) {
+            if(!confirm(`⚠️ 確定要作廢單號 #${orderData.id}？\n\n1. 金額 £${orderData.amount} 將被扣除\n2. 庫存將會加回\n3. 廚房單將被撤回`)) return;
+
+            // 1. 扣減金額
+            const statsRef = db.ref('dailyStats');
+            statsRef.transaction(stats => {
+                if(!stats) return stats;
+                if(orderData.method === 'Cash') stats.cash -= parseFloat(orderData.amount);
+                else stats.sumup -= parseFloat(orderData.amount);
+                return stats;
+            });
+
+            // 2. 加回庫存 (還原)
+            const invRef = db.ref('inventory');
+            invRef.transaction(inv => {
+                if(!inv) return inv;
+                let items = orderData.items.split(' + ');
+                items.forEach(itemName => {
+                    let menuItem = menuItems.find(m => m.name === itemName);
+                    if(menuItem) {
+                        let stockId = menuItem.stockId || menuItem.id;
+                        if(inv[stockId] !== undefined) inv[stockId]++;
+                    }
+                });
+                return inv;
+            });
+
+            // 3. 刪除 SalesLog
+            db.ref('salesLog').child(key).remove();
+
+            // 4. 刪除 Kitchen Order (如果未出餐)
+            db.ref('orders').orderByChild('id').equalTo(orderData.id).once('value', snapshot => {
+                snapshot.forEach(child => {
+                    child.ref.remove();
+                });
+            });
+            
+            // UI更新
+            alert(`單號 #${orderData.id} 已作廢。`);
+            // 如果是在 Modal 中，列表會自動更新因為有 on('value') 監聽
+        }
+
         // === Kitchen ===
         function initKitchenListener() {
             const list = document.getElementById('ticket-list');
-            // 監聽雲端 Orders
             db.ref('orders').orderByChild('timestamp').limitToLast(30).on('child_added', (snapshot) => {
                 const order = snapshot.val();
                 const key = snapshot.key;
                 playCashSound(); 
                 if(list.innerText.includes('準備接單')) list.innerHTML = '';
-                
-                // 檢查是否已存在 (避免重複 render)
                 if(document.getElementById(key)) return;
-
                 let card = document.createElement('div');
                 card.className = 'ticket'; card.id = key;
                 card.dataset.id = order.id; card.dataset.time = order.time; card.dataset.items = order.items; card.dataset.method = order.method;
@@ -534,7 +506,6 @@
                 updateKitchenStats();
             });
         }
-
         function updateKitchenStats() {
             let summaryBox = document.getElementById('kitchen-summary');
             let contentBox = document.getElementById('summary-content');
@@ -551,36 +522,22 @@
             contentBox.innerHTML = html;
             summaryBox.style.display = 'block';
         }
-
         function completeOrder(key) {
-            // 本地儲存一份 Kitchen History，不需上雲端 (除非你想廚房機之間同步歷史)
             let el = document.getElementById(key);
             if(el) {
                 let id = el.dataset.id; let time = el.dataset.time; let items = el.dataset.items; let method = el.dataset.method || 'Unknown';
                 let doneTime = new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit'});
-                kitchenHistory.unshift({ id, items, inTime: time, doneTime, method, key }); // key for restore
-                // 簡單存入 localStorage 作暫存
+                kitchenHistory.unshift({ id, items, inTime: time, doneTime, method, key }); 
                 localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
             }
             db.ref('orders').child(key).remove();
         }
-        
         function undoLastOrder() {
             if (kitchenHistory.length === 0) { alert("冇嘢可以復原！"); return; }
             let last = kitchenHistory[0];
             if(!confirm(`確定要還原單號 #${last.id}?`)) return;
-            
-            kitchenHistory.shift(); 
-            localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
-
-            // 推返上雲端 Orders
-            db.ref('orders').push({
-                id: last.id,
-                items: last.items,
-                time: last.inTime,
-                method: last.method,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
+            kitchenHistory.shift(); localStorage.setItem('kitchenHistory', JSON.stringify(kitchenHistory));
+            db.ref('orders').push({ id: last.id, items: last.items, time: last.inTime, method: last.method, timestamp: firebase.database.ServerValue.TIMESTAMP });
         }
 
         // === Modal Functions ===
@@ -592,8 +549,25 @@
             if (!data || data.length === 0) { listDiv.innerHTML = '<div style="text-align:center;margin-top:20px;color:#999">暫無紀錄</div>'; return; }
             let html = '';
             data.forEach(t => {
-                if(type === 'pos') html += `<div class="history-item"><div class="h-header"><span>#${t.id} - ${t.time}</span><span class="h-tag" style="background:${t.method=='Cash'?'#27ae60':'#0053a0'}">${t.method} £${t.amount}</span></div><div class="h-items">${t.items}</div></div>`;
-                else html += `<div class="history-item"><div class="h-header"><span>#${t.id}</span><span style="font-size:0.8em;color:#7f8c8d">入: ${t.inTime} / 出: ${t.doneTime}</span></div><div class="h-items">${t.items}</div></div>`;
+                if(type === 'pos') {
+                    // POS: 顯示退單掣
+                    // 將 order 物件轉為 JSON string 放入 button attribute 方便讀取
+                    let orderJson = JSON.stringify(t).replace(/"/g, '&quot;');
+                    html += `
+                        <div class="history-item">
+                            <div class="h-info">
+                                <div class="h-header">
+                                    <span>#${t.id} - ${t.time}</span>
+                                    <span class="h-tag" style="background:${t.method=='Cash'?'#27ae60':'#0053a0'}">${t.method} £${t.amount}</span>
+                                </div>
+                                <div class="h-items">${t.items}</div>
+                            </div>
+                            <button class="void-btn" onclick='deleteOrder("${t.key}", ${orderJson})'>🗑️ 作廢</button>
+                        </div>`;
+                } else {
+                    // Kitchen
+                    html += `<div class="history-item"><div class="h-header"><span>#${t.id}</span><span style="font-size:0.8em;color:#7f8c8d">入: ${t.inTime} / 出: ${t.doneTime}</span></div><div class="h-items">${t.items}</div></div>`;
+                }
             });
             listDiv.innerHTML = html;
         }
@@ -602,4 +576,3 @@
     </script>
 </body>
 </html>
-
