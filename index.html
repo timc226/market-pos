@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TkFoodLab V23 (Reorder Feature)</title>
+    <title>TkFoodLab V24 (Final Complete)</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <style>
-        /* 保持原本樣式 */
+        /* --- 核心樣式 --- */
         * { touch-action: manipulation; -webkit-user-select: none; user-select: none; box-sizing: border-box; }
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         
         #role-select { display: flex; flex-direction: column; gap: 20px; margin-top: 100px; width: 100%; max-width: 300px; }
         .role-btn { padding: 30px; font-size: 1.5em; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
         
-        #pos-view { display: none; width: 100%; max-width: 420px; flex-direction: column; align-items: center; padding-bottom: 50px; }
+        #pos-view, #kitchen-view { display: none; width: 100%; max-width: 420px; flex-direction: column; align-items: center; }
+        #kitchen-view { max-width: 600px; }
+
         .pos-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .settings-btn { background: #7f8c8d; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 0.9em; cursor: pointer; }
 
@@ -33,7 +35,7 @@
         .btn-combo { background: #27ae60; } 
         .btn-undo { background: #f1c40f; color: #333; grid-column: span 2; margin-top: 5px; }
 
-        .history-box { width: 100%; margin: 10px 0; background: #fff; border: 2px solid #3498db; padding: 10px; border-radius: 12px; min-height: 60px; }
+        .history-box { width: 100%; margin: 10px 0; background: #fff; border: 2px solid #3498db; padding: 10px; border-radius: 12px; min-height: 60px; font-size: 1.1em; }
         .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 10px; }
         .btn-sumup { background: #0053a0; grid-column: span 2; padding: 18px; font-size: 1.3em; color:white; border:none; border-radius:10px; font-weight:bold; } 
         .btn-cash { background: #27ae60; padding: 15px; font-size: 1.1em; color:white; border:none; border-radius:10px; font-weight:bold;} 
@@ -42,55 +44,79 @@
         .admin-section { width: 100%; border-top: 2px dashed #bdc3c7; margin-top: 20px; padding-top: 15px; }
         .stat-row { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; font-size: 1.1em; }
         
-        /* Modal Styles */
+        /* Modal 樣式 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; width: 95%; max-width: 480px; height: 85%; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; }
+        .modal-content { background: #fff; width: 95%; max-width: 480px; height: 85%; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; -webkit-user-select: text; user-select: text; }
         .modal-body { flex: 1; overflow-y: auto; }
-        
-        /* Product Editor Card with Reorder Buttons */
         .edit-card { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; background: #f9f9f9; display: flex; gap: 10px; align-items: center; }
-        .reorder-btns { display: flex; flex-direction: column; gap: 5px; }
-        .reorder-btn { padding: 5px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 0.8em; cursor: pointer; }
-        .edit-fields { flex: 1; }
+        .save-btn { background: #27ae60; color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-weight: bold; margin-top: 10px; font-size: 1.1em; cursor: pointer; }
 
-        .save-btn { background: #27ae60; color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-weight: bold; margin-top: 10px; font-size: 1.1em; }
+        /* --- 🖨️ 列印專用樣式 --- */
+        #receipt-print-area { display: none; }
+        @media print {
+            body * { display: none !important; }
+            #receipt-print-area { display: block !important; width: 58mm; margin: 0; padding: 5px; font-family: monospace; color: #000; }
+            .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .receipt-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 3px; }
+            .receipt-total { border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; font-weight: bold; font-size: 16px; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- 隱藏收據區 -->
+    <div id="receipt-print-area">
+        <div class="receipt-header">
+            <h2 style="margin:0;">TkFoodLab</h2>
+            <p id="r-time" style="font-size:12px; margin:5px 0;"></p>
+            <p style="margin:0;">Order ID: <span id="r-id" style="font-size:22px; font-weight:bold;"></span></p>
+        </div>
+        <div id="r-items-list"></div>
+        <div class="receipt-total">
+            <div class="receipt-row"><span>TOTAL:</span><span id="r-total"></span></div>
+            <div class="receipt-row" style="font-size:12px; font-weight:normal;"><span>Method:</span><span id="r-method"></span></div>
+        </div>
+        <p style="text-align:center; font-size:12px; margin-top:15px;">Thank you for supporting!<br>Enjoy your food!</p>
+    </div>
+
+    <!-- 產品管理 Modal -->
     <div id="productModal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header"><h3>📝 產品管理 (可調次序)</h3></div>
+            <h3>📝 產品管理</h3>
             <div class="modal-body" id="productList"></div>
-            <button onclick="addNewProductRow()" style="padding:12px; background:#3498db; color:white; border:none; border-radius:8px; margin-top:10px; font-weight:bold;">➕ 新增產品項目</button>
-            <button class="save-btn" onclick="saveProductConfig()">💾 儲存並同步選單次序</button>
-            <button onclick="closeModal('productModal')" style="margin-top:10px; padding:8px; border:none; background:none; color:#7f8c8d;">取消</button>
+            <button onclick="addNewProductRow()" style="padding:12px; background:#3498db; color:white; border:none; border-radius:8px; margin-top:10px;">➕ 新增產品</button>
+            <button class="save-btn" onclick="saveProductConfig()">💾 儲存並同步選單</button>
+            <button onclick="closeModal('productModal')" style="margin-top:10px; background:none; border:none; color:#7f8c8d;">取消</button>
         </div>
     </div>
 
+    <!-- 庫存 Modal -->
     <div id="inventoryModal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header"><h3>📦 庫存設定</h3></div>
+            <h3>📦 庫存設定</h3>
             <div class="modal-body" id="inventoryList"></div>
             <button class="save-btn" onclick="saveInventory()">💾 儲存庫存</button>
-            <button onclick="closeModal('inventoryModal')" style="margin-top:10px; border:none; background:none;">取消</button>
+            <button onclick="closeModal('inventoryModal')" style="margin-top:10px; border:none; background:none;">返回</button>
         </div>
     </div>
 
+    <!-- 歷史紀錄 Modal -->
     <div id="historyModal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header"><h3>📜 歷史紀錄 / 退單</h3></div>
+            <h3>📜 歷史紀錄 (退單/印單)</h3>
             <div class="modal-body" id="modalListContent"></div>
-            <button onclick="closeModal('historyModal')" style="margin-top:10px; padding:15px; width:100%; border-radius:10px;">關閉</button>
+            <button onclick="closeModal('historyModal')" style="margin-top:10px; padding:15px; width:100%;">關閉</button>
         </div>
     </div>
 
+    <!-- 角色選擇 -->
     <div id="role-select">
-        <h2 style="text-align:center; color:#2c3e50;">TkFoodLab V23</h2>
+        <h2 style="text-align:center;">TkFoodLab V24</h2>
         <button class="role-btn" style="background:#3498db;" onclick="selectRole('pos')">🏪 收銀 (POS)</button>
         <button class="role-btn" style="background:#e67e22;" onclick="selectRole('kitchen')">👨‍🍳 廚房 (Kitchen)</button>
     </div>
 
+    <!-- POS 介面 -->
     <div id="pos-view">
         <div class="pos-header">
             <button class="settings-btn" onclick="openProductEditor()">📝 管理產品</button>
@@ -103,8 +129,7 @@
         </div>
         
         <div class="grid" id="menuGrid"></div>
-
-        <div class="history-box"><strong id="log" style="color:#7f8c8d;">空</strong></div>
+        <div class="history-box"><strong id="log">空</strong></div>
 
         <div class="payment-grid">
             <button class="btn-sumup" onclick="payWithSumUp()">💳 SumUp 支付</button>
@@ -113,28 +138,27 @@
         </div>
         
         <div class="admin-section">
-            <div class="stat-row" style="color:#27ae60;">Cash Total: <span id="cashTotal">£ 0.00</span></div>
-            <div class="stat-row" style="color:#0053a0;">SumUp Total: <span id="sumupTotal">£ 0.00</span></div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button onclick="downloadCSV()" style="flex:1; padding:10px; border-radius:8px; border:none; background:#7f8c8d; color:white;">📥 流水帳</button>
-                <button onclick="downloadRankCSV()" style="flex:1; padding:10px; border-radius:8px; border:none; background:#27ae60; color:white;">📊 排名榜</button>
+            <div class="stat-row" style="color:#27ae60;">Cash: <span id="cashTotal">£ 0.00</span></div>
+            <div class="stat-row" style="color:#0053a0;">SumUp: <span id="sumupTotal">£ 0.00</span></div>
+            <div style="display:flex; gap:5px;">
+                <button onclick="downloadCSV()" style="flex:1; padding:10px;">📥 流水帳</button>
+                <button onclick="downloadRankCSV()" style="flex:1; padding:10px; background:#27ae60; color:white; border:none; border-radius:5px;">📊 排名榜</button>
             </div>
-            <button onclick="showPosHistory()" style="width:100%; padding:12px; margin-top:12px; background:#34495e; color:white; border:none; border-radius:8px;">📜 查看紀錄 / 作廢退單</button>
-            <button onclick="clearAllData()" style="width:100%; padding:8px; margin-top:20px; background:#eee; border:none; border-radius:8px; font-size:0.8em; color:#999;">🔴 收市清機 (Reset All Data)</button>
+            <button onclick="showPosHistory()" style="width:100%; padding:12px; margin-top:10px; background:#34495e; color:white; border:none; border-radius:8px;">📜 查看紀錄 / 退單補印</button>
+            <button onclick="clearAllData()" style="width:100%; padding:8px; margin-top:15px; background:#eee; border:none; color:#999; font-size:0.8em;">🔴 收市清機 (Reset)</button>
         </div>
     </div>
 
-    <div id="kitchen-view" style="display:none; width:100%; max-width:600px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>👨‍🍳 廚房接單</h2>
-        </div>
-        <div id="ticket-list"></div>
+    <!-- 廚房介面 -->
+    <div id="kitchen-view">
+        <h2>👨‍🍳 廚房接單</h2>
+        <div id="ticket-list" style="width:100%;"></div>
     </div>
 
     <audio id="cashSound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
 
     <script>
-        // Firebase Config
+        // --- Firebase 設定 ---
         const firebaseConfig = {
             apiKey: "AIzaSyAwf89HosgmxTH4daR_IIdzKMBwhxxTx3E",
             authDomain: "tkfoodlab-94f22.firebaseapp.com",
@@ -154,32 +178,16 @@
         let cloudSalesLog = [];
 
         function initGlobalListeners() {
-            db.ref('menuConfig').on('value', snap => { 
-                menuItems = snap.val() || []; 
-                renderMenu(); 
-            });
-            db.ref('dailyStats').on('value', snap => { 
-                dailyStats = snap.val() || { cash: 0, sumup: 0, orderCount: 1 }; 
-                updateUI(); 
-            });
-            db.ref('inventory').on('value', snap => { 
-                cloudInventory = snap.val() || {}; 
-                renderMenu(); 
-            });
+            db.ref('menuConfig').on('value', snap => { menuItems = snap.val() || []; renderMenu(); });
+            db.ref('dailyStats').on('value', snap => { dailyStats = snap.val() || { cash: 0, sumup: 0, orderCount: 1 }; updateUI(); });
+            db.ref('inventory').on('value', snap => { cloudInventory = snap.val() || {}; renderMenu(); });
             db.ref('salesLog').on('value', snap => {
                 const val = snap.val();
                 cloudSalesLog = val ? Object.entries(val).map(([k, v]) => ({...v, key: k})).sort((a,b)=>b.timestamp-a.timestamp) : [];
             });
         }
 
-        function selectRole(role) {
-            document.getElementById('role-select').style.display = 'none';
-            initGlobalListeners();
-            if(role==='pos') document.getElementById('pos-view').style.display='flex';
-            else { document.getElementById('kitchen-view').style.display='flex'; initKitchenListener(); }
-        }
-
-        // --- 核心 POS 渲染 ---
+        // --- POS 渲染 ---
         function renderMenu() {
             const grid = document.getElementById('menuGrid');
             if(!grid) return;
@@ -209,84 +217,7 @@
             document.getElementById('sumupTotal').innerText = '£ ' + Number(dailyStats.sumup).toFixed(2);
         }
 
-        // --- 產品管理 (新增/修改/調次序) ---
-        function openProductEditor() {
-            const list = document.getElementById('productList');
-            list.innerHTML = '';
-            menuItems.forEach((item, index) => {
-                list.innerHTML += `
-                <div class="edit-card">
-                    <div class="reorder-btns">
-                        <button class="reorder-btn" onclick="moveItem(${index}, -1)">▲</button>
-                        <button class="reorder-btn" onclick="moveItem(${index}, 1)">▼</button>
-                    </div>
-                    <div class="edit-fields">
-                        <div style="display:flex; gap:5px; margin-bottom:5px;">
-                            <input type="text" id="p-name-${index}" value="${item.name}" style="flex:2; padding:8px;">
-                            <input type="number" id="p-price-${index}" value="${item.price}" style="flex:1; padding:8px;">
-                        </div>
-                        <div style="display:flex; gap:5px;">
-                            <select id="p-type-${index}" style="flex:1; padding:8px;">
-                                <option value="food" ${item.type==='food'?'selected':''}>小食</option>
-                                <option value="drink" ${item.type==='drink'?'selected':''}>飲品</option>
-                                <option value="combo" ${item.type==='combo'?'selected':''}>套餐</option>
-                            </select>
-                            <input type="text" id="p-stockid-${index}" value="${item.stockId || ''}" style="flex:1; padding:8px;" placeholder="庫存ID">
-                            <button onclick="removeProductRow(${index})" style="background:none; border:none; font-size:1.2em;">🗑️</button>
-                        </div>
-                    </div>
-                </div>`;
-            });
-            document.getElementById('productModal').style.display = 'flex';
-        }
-
-        // 調動次序邏輯
-        function moveItem(index, direction) {
-            saveTempInputs(); // 先保存目前的文字輸入
-            const newIndex = index + direction;
-            if (newIndex >= 0 && newIndex < menuItems.length) {
-                const temp = menuItems[index];
-                menuItems[index] = menuItems[newIndex];
-                menuItems[newIndex] = temp;
-                openProductEditor(); // 重新渲染 Modal 列表
-            }
-        }
-
-        function saveTempInputs() {
-            menuItems.forEach((item, index) => {
-                const nameEl = document.getElementById(`p-name-${index}`);
-                if(nameEl) {
-                    item.name = nameEl.value;
-                    item.price = document.getElementById(`p-price-${index}`).value;
-                    item.type = document.getElementById(`p-type-${index}`).value;
-                    item.stockId = document.getElementById(`p-stockid-${index}`).value;
-                }
-            });
-        }
-
-        function addNewProductRow() {
-            saveTempInputs();
-            menuItems.push({ id: 'item_' + Date.now(), name: '🆕 新產品', price: 0, type: 'food', stockId: '' });
-            openProductEditor();
-        }
-
-        function removeProductRow(index) {
-            if(confirm("確定刪除？")) {
-                saveTempInputs();
-                menuItems.splice(index, 1);
-                openProductEditor();
-            }
-        }
-
-        function saveProductConfig() {
-            saveTempInputs();
-            db.ref('menuConfig').set(menuItems).then(() => {
-                alert("選單次序已儲存！");
-                closeModal('productModal');
-            });
-        }
-
-        // --- 交易邏輯 (與 V22.2 相同) ---
+        // --- 交易邏輯 ---
         function payWithCash() { processTransaction('Cash'); }
         function payWithSumUp() {
             const total = currentOrder.reduce((s, i) => s + Number(i.price), 0);
@@ -299,6 +230,7 @@
             if (currentOrder.length === 0) return;
             const total = currentOrder.reduce((s, i) => s + Number(i.price), 0);
             const itemsStr = currentOrder.map(i => i.name).join(' + ');
+            
             db.ref('dailyStats').transaction(stats => {
                 if(stats) {
                     if(method==='Cash') stats.cash += total; else stats.sumup += total;
@@ -308,92 +240,137 @@
             }, (err, ok, snap) => {
                 if(ok) {
                     const id = String(snap.val().orderCount - 1).padStart(3,'0');
-                    db.ref('salesLog').push({ id, time: new Date().toLocaleTimeString(), items: itemsStr, amount: total.toFixed(2), method, timestamp: Date.now() });
-                    db.ref('orders').push({ id, items: itemsStr, time: new Date().toLocaleTimeString(), timestamp: Date.now() });
+                    const orderData = { 
+                        id, 
+                        time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}), 
+                        items: itemsStr, 
+                        amount: total.toFixed(2), 
+                        method, 
+                        timestamp: Date.now() 
+                    };
+                    db.ref('salesLog').push(orderData);
+                    db.ref('orders').push({ id, items: itemsStr, time: orderData.time, timestamp: orderData.timestamp });
                     db.ref('inventory').transaction(inv => {
                         if(inv) currentOrder.forEach(o => { let sid = o.stockId || o.id; if(inv[sid]!==undefined) inv[sid]--; });
                         return inv;
                     });
                     document.getElementById('cashSound').play().catch(e=>{});
+                    if(confirm("交易成功！是否列印收據？")) printReceipt(orderData);
                     currentOrder = []; updateUI();
                 }
             });
         }
 
-        // --- 報表、歷史、庫存 (維持不變) ---
-        function downloadCSV() {
-            if (cloudSalesLog.length === 0) return;
-            let csv = "\uFEFF單號,時間,內容,金額,方式\n";
-            cloudSalesLog.forEach(r => { csv += `#${r.id},${r.time},"${r.items}",£${r.amount},${r.method}\n`; });
-            downloadFile(csv, `sales_${new Date().toISOString().slice(0,10)}.csv`);
+        // --- 🖨️ 列印收據 ---
+        function printReceipt(data) {
+            document.getElementById('r-id').innerText = data.id;
+            document.getElementById('r-time').innerText = data.time;
+            document.getElementById('r-method').innerText = data.method;
+            document.getElementById('r-total').innerText = "£" + data.amount;
+            const list = document.getElementById('r-items-list');
+            list.innerHTML = data.items.split(' + ').map(i => `<div class="receipt-row"><span>${i}</span><span>1</span></div>`).join('');
+            setTimeout(() => { window.print(); }, 300);
         }
-        function downloadRankCSV() {
-            let stats = {};
-            cloudSalesLog.forEach(log => { log.items.split(' + ').forEach(name => { stats[name] = (stats[name] || 0) + 1; }); });
-            let csv = "\uFEFF產品,數量\n";
-            Object.entries(stats).sort((a,b)=>b[1]-a[1]).forEach(x => { csv += `"${x[0]}",${x[1]}\n`; });
-            downloadFile(csv, `rank_${new Date().toISOString().slice(0,10)}.csv`);
+
+        // --- 產品管理與排序 ---
+        function openProductEditor() {
+            const list = document.getElementById('productList');
+            list.innerHTML = menuItems.map((item, i) => `
+                <div class="edit-card">
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <button onclick="moveItem(${i},-1)">▲</button><button onclick="moveItem(${i},1)">▼</button>
+                    </div>
+                    <div style="flex:1">
+                        <input type="text" id="p-n-${i}" value="${item.name}" style="width:100%; margin-bottom:5px;">
+                        <input type="number" id="p-p-${i}" value="${item.price}" style="width:60px;">
+                        <select id="p-t-${i}"><option value="food" ${item.type==='food'?'selected':''}>小食</option><option value="drink" ${item.type==='drink'?'selected':''}>飲品</option></select>
+                        <input type="text" id="p-s-${i}" value="${item.stockId||''}" style="width:80px" placeholder="庫存ID">
+                        <button onclick="removeRow(${i})">🗑️</button>
+                    </div>
+                </div>`).join('');
+            document.getElementById('productModal').style.display = 'flex';
         }
-        function downloadFile(content, filename) {
-            let blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-            let link = document.createElement("a");
-            link.href = URL.createObjectURL(blob); link.download = filename; link.click();
+
+        function moveItem(idx, dir) {
+            saveTemp();
+            let target = idx + dir;
+            if(target >= 0 && target < menuItems.length) {
+                [menuItems[idx], menuItems[target]] = [menuItems[target], menuItems[idx]];
+                openProductEditor();
+            }
         }
+
+        function saveTemp() {
+            menuItems.forEach((item, i) => {
+                const n = document.getElementById(`p-n-${i}`);
+                if(n) { item.name = n.value; item.price = document.getElementById(`p-p-${i}`).value; item.type = document.getElementById(`p-t-${i}`).value; item.stockId = document.getElementById(`p-s-${i}`).value; }
+            });
+        }
+
+        function addNewProductRow() { saveTemp(); menuItems.push({id:'item_'+Date.now(), name:'新產品', price:0, type:'food'}); openProductEditor(); }
+        function removeRow(i) { if(confirm("刪除？")) { menuItems.splice(i,1); openProductEditor(); } }
+        function saveProductConfig() { saveTemp(); db.ref('menuConfig').set(menuItems).then(() => closeModal('productModal')); }
+
+        // --- 其他工具 ---
+        function selectRole(r) { document.getElementById('role-select').style.display='none'; initGlobalListeners(); document.getElementById(r+'-view').style.display='flex'; if(r==='kitchen') initKitchen(); }
+        function closeModal(id) { document.getElementById(id).style.display='none'; }
+        function nextCustomer() { currentOrder=[]; updateUI(); }
         function showPosHistory() {
             let list = document.getElementById('modalListContent');
             list.innerHTML = cloudSalesLog.map(l => `
-                <div style="border-bottom:1px solid #eee; padding:10px; display:flex; justify-content:space-between;">
-                    <div>#${l.id} - £${l.amount} (${l.method})<br><small>${l.items}</small></div>
-                    <button class="void-btn" onclick='deleteOrder("${l.key}", ${JSON.stringify(l)})'>作廢</button>
-                </div>`).join('') || '<p>無紀錄</p>';
+                <div style="border-bottom:1px solid #eee; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:0.8em;"><b>#${l.id} - £${l.amount}</b><br>${l.items}</div>
+                    <div>
+                        <button onclick='printReceipt(${JSON.stringify(l)})'>🖨️</button>
+                        <button onclick='deleteOrder("${l.key}",${JSON.stringify(l)})'>🗑️</button>
+                    </div>
+                </div>`).join('');
             document.getElementById('historyModal').style.display = 'flex';
         }
         function deleteOrder(key, data) {
-            if(!confirm(`⚠️ 確定作廢 #${data.id}？`)) return;
+            if(!confirm(`作廢 #${data.id}？`)) return;
             db.ref('dailyStats').transaction(s => { if(s) { if(data.method==='Cash') s.cash -= parseFloat(data.amount); else s.sumup -= parseFloat(data.amount); } return s; });
             db.ref('inventory').transaction(inv => {
-                if(!inv) return inv;
-                data.items.split(' + ').forEach(name => {
-                    let m = menuItems.find(mi => mi.name === name);
-                    if(m) { let sid = m.stockId || m.id; if(inv[sid]!==undefined) inv[sid]++; }
-                });
+                if(inv) data.items.split(' + ').forEach(name => { let m = menuItems.find(mi => mi.name === name); if(m) { let sid = m.stockId || m.id; if(inv[sid]!==undefined) inv[sid]++; } });
                 return inv;
             });
             db.ref('salesLog').child(key).remove();
-            alert("已作廢"); closeModal('historyModal');
         }
         function openInventory() {
             const list = document.getElementById('inventoryList'); list.innerHTML = '';
             let seen = {};
             menuItems.forEach(item => {
-                let sid = item.stockId || item.id;
-                if(seen[sid]) return; seen[sid] = true;
-                list.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>${item.name}</span><input type="number" id="inv-${sid}" value="${cloudInventory[sid] ?? ''}" style="width:80px; padding:8px;"></div>`;
+                let sid = item.stockId || item.id; if(seen[sid]) return; seen[sid] = true;
+                list.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>${item.name}</span><input type="number" id="inv-${sid}" value="${cloudInventory[sid]??''}" style="width:80px;"></div>`;
             });
             document.getElementById('inventoryModal').style.display = 'flex';
         }
         function saveInventory() {
-            let newInv = {}; let seen = {};
-            menuItems.forEach(item => {
-                let sid = item.stockId || item.id;
-                if(seen[sid]) return; seen[sid] = true;
-                let v = document.getElementById(`inv-${sid}`).value;
-                if(v !== '') newInv[sid] = parseInt(v);
-            });
+            let newInv = {}; menuItems.forEach(item => { let sid = item.stockId || item.id; let v = document.getElementById(`inv-${sid}`); if(v && v.value!=='') newInv[sid] = parseInt(v.value); });
             db.ref('inventory').set(newInv).then(() => closeModal('inventoryModal'));
         }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function nextCustomer() { currentOrder = []; updateUI(); }
-        function clearAllData() { if(confirm('🔴 確定清空今日營業額？')) { db.ref('dailyStats').set({ cash: 0, sumup: 0, orderCount: 1 }); db.ref('salesLog').remove(); db.ref('orders').remove(); } }
-        function initKitchenListener() {
+        function downloadCSV() {
+            let csv = "\uFEFF單號,時間,內容,金額,方式\n";
+            cloudSalesLog.forEach(r => { csv += `#${r.id},${r.time},"${r.items}",£${r.amount},${r.method}\n`; });
+            let blob = new Blob([csv], {type:'text/csv'});
+            let link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'sales.csv'; link.click();
+        }
+        function downloadRankCSV() {
+            let s = {}; cloudSalesLog.forEach(l => l.items.split(' + ').forEach(n => s[n] = (s[n]||0)+1));
+            let csv = "\uFEFF產品,數量\n"; Object.entries(s).sort((a,b)=>b[1]-a[1]).forEach(x => csv += `"${x[0]}",${x[1]}\n`);
+            let blob = new Blob([csv], {type:'text/csv'});
+            let link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'rank.csv'; link.click();
+        }
+        function clearAllData() { if(confirm("清空數據？")) { db.ref('dailyStats').set({cash:0,sumup:0,orderCount:1}); db.ref('salesLog').remove(); db.ref('orders').remove(); } }
+        function initKitchen() {
             db.ref('orders').on('child_added', snap => {
                 const o = snap.val();
-                const card = document.createElement('div'); card.className = 'edit-card'; card.id = 'k-' + snap.key;
-                card.style.background = "#fff"; card.style.borderLeft = "10px solid #e67e22";
-                card.innerHTML = `<div style="font-size:1.5em; font-weight:bold; color:#e67e22;">#${o.id}</div><div style="font-size:1.2em; margin:10px 0;">${o.items}</div><button onclick="db.ref('orders').child('${snap.key}').remove()" style="width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:8px;">✅ Done</button>`;
+                const card = document.createElement('div'); card.id = 'k-'+snap.key;
+                card.style = "background:#fff; border-left:10px solid #e67e22; padding:15px; margin-bottom:10px; border-radius:8px;";
+                card.innerHTML = `<div style="font-size:1.5em; font-weight:bold;">#${o.id}</div><div style="font-size:1.2em; margin:10px 0;">${o.items}</div><button onclick="db.ref('orders').child('${snap.key}').remove()" style="width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:8px;">✅ Done</button>`;
                 document.getElementById('ticket-list').prepend(card);
             });
-            db.ref('orders').on('child_removed', snap => { const el = document.getElementById('k-' + snap.key); if(el) el.remove(); });
+            db.ref('orders').on('child_removed', snap => { const el = document.getElementById('k-'+snap.key); if(el) el.remove(); });
         }
     </script>
 </body>
