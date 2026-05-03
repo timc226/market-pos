@@ -35,22 +35,55 @@
 
         /* --- 🖨️ 列印樣式修正 --- */
         #receipt-print-area { display: none; }
-        @media print {
-            /* 隱藏所有 UI，只顯示收據 */
-            body * { visibility: hidden; }
-            #receipt-print-area, #receipt-print-area * { visibility: visible; }
-            #receipt-print-area { 
-                display: block !important; 
-                position: absolute; 
-                left: 0; top: 0; width: 58mm; 
-                padding: 10px; margin: 0;
-                background: white;
-                color: black;
-            }
-            .receipt-row { display: flex; justify-content: space-between; width: 100%; font-family: monospace; font-size: 14px; margin-bottom: 2px; }
-            .receipt-header { text-align: center; border-bottom: 1px dashed black; margin-bottom: 10px; padding-bottom: 5px; }
-            .receipt-total { border-top: 1px dashed black; margin-top: 10px; padding-top: 5px; font-weight: bold; }
-        }
+       /* --- 修正版：針對 iPhone / 58mm 熱敏紙 --- */
+@media print {
+    /* 1. 話俾瀏覽器知紙張大細 */
+    @page {
+        size: 58mm auto; /* 指定闊度 58mm，長度根據內容自動延伸 */
+        margin: 0;       /* 移除邊距 */
+    }
+
+    /* 2. 徹底隱藏網頁上唔需要印嘅嘢 */
+    body {
+        background: white !important;
+        margin: 0;
+        padding: 0;
+    }
+    
+    #role-select, #pos-view, #kitchen-view, .modal-overlay, .admin-section, .settings-btn { 
+        display: none !important; 
+    }
+
+    /* 3. 設定收據區域 */
+    #receipt-print-area { 
+        display: block !important; 
+        visibility: visible !important;
+        position: static; /* 喺 iPhone 建議用 static 或 relative 代替 absolute */
+        width: 58mm !important; 
+        padding: 8mm 4mm !important; /* 左右留少少白，避免印唔到邊位 */
+        margin: 0 auto;
+        color: black !important;
+        background: white !important;
+    }
+
+    /* 4. 確保文字排版 */
+    .receipt-row { 
+        display: flex !important; 
+        justify-content: space-between !important; 
+        width: 100% !important; 
+        font-family: monospace; 
+        font-size: 14px; 
+        margin-bottom: 4px;
+        visibility: visible !important;
+    }
+
+    #r-items-list *, .receipt-header *, .receipt-total * {
+        visibility: visible !important;
+    }
+
+    .receipt-header { text-align: center; border-bottom: 1px dashed black; margin-bottom: 10px; padding-bottom: 5px; }
+    .receipt-total { border-top: 1px dashed black; margin-top: 10px; padding-top: 5px; font-weight: bold; }
+}
     </style>
 </head>
 <body>
